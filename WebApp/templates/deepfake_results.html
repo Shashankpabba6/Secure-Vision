@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deepfake Results</title>
+</head>
+<body>
+    <h1>Deepfake Detection Results</h1>
+    {% if is_deepfake %}
+    <h2>This video is classified as a deepfake.</h2>
+    <img src="{{ url_for('static', filename='deepfake_image.png') }}" alt="Deepfake Image" width="400">
+    {% else %}
+    <h2>This video is classified as real.</h2>
+    <img src="{{ url_for('static', filename='real_image.png') }}" alt="Real Image" width="400">
+    {% endif %}
+</body>
+</html>

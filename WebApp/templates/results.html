@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction Result</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+            text-align: center;
+        }
+        h1 {
+            margin-top: 20px;
+            color: #333;
+        }
+        img {
+            margin: 20px auto;
+            display: block;
+            border: 2px solid #333;
+            border-radius: 8px;
+            max-width: 20%; /* Adjust the maximum width of the image */
+            height: auto;
+        }
+        p {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .fake-warning {
+            color: red;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .verified-message {
+            color: green;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prediction Result</h1>
+    <img src="{{ url_for('get_result_image') }}" alt="Predicted Image" width="1200"> <!-- Adjust the width as needed -->
+    <p>Prediction: {{ prediction }}</p>
+    <p>Confidence: {{ confidence }}</p>
+    
+    {% if prediction != 'REAL' %}
+        <p class="fake-warning">Warning: DeepFake Detected verification Failed.</p>
+    {% else %}
+        <p class="verified-message">Identify Verified!</p>
+    {% endif %}
+</body>
+</html>

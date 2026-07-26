@@ -1,0 +1,54 @@
+# Environment variables
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model files (use Git LFS instead)
+*.pt
+*.pth
+*.h5
+*.hdf5
+*.onnx
+*.bin
+
+# Output
+output/
+*.jpg
+*.png
+result.jpg
+2.png
+
+# Logs
+*.log
+wandb/
+lightning_logs/
+
+# Dataset (too large for git)
+Dataset/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
