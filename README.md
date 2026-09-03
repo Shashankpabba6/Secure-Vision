@@ -234,7 +234,7 @@ MIT License — feel free to use, modify, and distribute.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **OpenRouter** for free vision model access
 - **MediaPipe** for face detection/landmarks
@@ -243,9 +243,3 @@ MIT License — feel free to use, modify, and distribute.
 - **Streamlit** for the delightful UI framework
 
 ---
-
-## 💬 Support
-
-Open an issue on GitHub for bugs, feature requests, or questions.
-
-**Made with ❤️ for security research and education.**
