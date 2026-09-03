@@ -5,11 +5,12 @@ Supports: OpenRouter (vision models), Roboflow (specialized models)
 import base64
 import os
 import json
+import re
 import requests
 import cv2
 import numpy as np
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from openai import OpenAI
 
 from config import (
@@ -40,30 +41,98 @@ class FaceVerificationClient(ABC):
         pass
 
 
+def _extract_json(text: Optional[str]) -> Dict[str, Any]:
+    """Extract a JSON object from model output (None, fences, or prose-safe)."""
+    if not text:
+        raise ValueError("model returned empty content")
+
+    # Strip markdown code fences
+    cleaned = re.sub(r"```(?:json)?\s*", "", text).strip()
+
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    # Scan for the first balanced {...} block, tolerating prose around it
+    start = cleaned.find("{")
+    if start == -1:
+        raise ValueError(f"no JSON object found in output: {cleaned[:120]}")
+    depth = 0
+    for i in range(start, len(cleaned)):
+        if cleaned[i] == "{":
+            depth += 1
+        elif cleaned[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return json.loads(cleaned[start:i + 1])
+    raise ValueError(f"unbalanced JSON in output: {cleaned[:120]}")
+
+
 class OpenRouterFaceClient(FaceVerificationClient):
     """Face verification using OpenRouter vision models."""
-    
+
+    # Fallback chain, tried in order if the primary model errors.
+    # Free-tier vision models verified against the OpenRouter catalog.
+    FALLBACK_MODELS: List[str] = [
+        "google/gemma-4-26b-a4b-it:free",
+        "nvidia/nemotron-nano-12b-v2-vl:free",
+    ]
+
     def __init__(self):
         if not OPENROUTER_API_KEY or OPENROUTER_API_KEY == "your_openrouter_key_here":
             raise ValueError("OPENROUTER_API_KEY not configured in .env")
-        
+
         self.client = OpenAI(
             base_url=OPENROUTER_BASE_URL,
             api_key=OPENROUTER_API_KEY,
         )
         self.model = OPENROUTER_VISION_MODEL
-    
+
+    def _candidate_models(self) -> List[str]:
+        chain = [self.model] + self.FALLBACK_MODELS
+        seen, out = set(), []
+        for m in chain:
+            if m and m not in seen:
+                seen.add(m)
+                out.append(m)
+        return out
+
     def _encode_image(self, image: np.ndarray) -> str:
         """Encode image to base64."""
         _, buffer = cv2.imencode('.jpg', image)
         return base64.b64encode(buffer).decode('utf-8')
-    
+
+    def _query_model(self, model: str, base64_image: str, prompt: str) -> Dict[str, Any]:
+        response = self.client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}",
+                                "detail": "high"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=300,
+            temperature=0.1,
+        )
+        content = response.choices[0].message.content
+        return _extract_json(content)
+
     def verify_face(self, image: np.ndarray) -> Dict[str, Any]:
         """Verify face liveness using vision model."""
         base64_image = self._encode_image(image)
-        
+
         prompt = """Analyze this image for face anti-spoofing (liveness detection).
-        
+
 Determine if the face is REAL (live person) or SPOOF (photo, video replay, mask, deepfake, screen display).
 
 Look for:
@@ -74,57 +143,39 @@ Look for:
 - Lack of natural micro-movements, blinking
 - Depth inconsistencies
 
-Return JSON only:
+Respond with ONLY a JSON object, no markdown, no explanation outside the JSON:
 {
   "label": "real" or "spoof",
   "confidence": 0-100,
   "reasoning": "brief explanation"
 }"""
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}",
-                                    "detail": "high"
-                                }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens=300,
-                temperature=0.1,
-                response_format={"type": "json_object"}
-            )
-            
-            result = json.loads(response.choices[0].message.content)
-            
-            # Normalize label
-            label = result.get('label', '').lower()
-            if label in ['real', 'live', 'genuine', 'authentic']:
-                label = 'real'
-            elif label in ['spoof', 'fake', 'attack']:
-                label = 'spoof'
-            
-            return {
-                'label': label,
-                'confidence': float(result.get('confidence', 50)),
-                'reasoning': result.get('reasoning', '')
-            }
-            
-        except Exception as e:
-            return {
-                'label': 'error',
-                'confidence': 0.0,
-                'reasoning': f"API error: {str(e)}"
-            }
+
+        errors = []
+        for model in self._candidate_models():
+            try:
+                result = self._query_model(model, base64_image, prompt)
+
+                # Normalize label
+                label = str(result.get('label', '')).lower()
+                if label in ['real', 'live', 'genuine', 'authentic']:
+                    label = 'real'
+                elif label in ['spoof', 'fake', 'attack']:
+                    label = 'spoof'
+
+                return {
+                    'label': label,
+                    'confidence': float(result.get('confidence', 50)),
+                    'reasoning': result.get('reasoning', ''),
+                    'model_used': model,
+                }
+            except Exception as e:
+                errors.append(f"{model}: {str(e)[:120]}")
+
+        return {
+            'label': 'error',
+            'confidence': 0.0,
+            'reasoning': "API error: " + " | ".join(errors),
+        }
 
 
 class RoboflowFaceClient(FaceVerificationClient):

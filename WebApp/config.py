@@ -33,7 +33,7 @@ FACE_API_PROVIDER = os.getenv("FACE_API_PROVIDER", "openrouter")
 # ============================================
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-OPENROUTER_VISION_MODEL = os.getenv("OPENROUTER_VISION_MODEL", "google/gemini-2.5-flash-preview")
+OPENROUTER_VISION_MODEL = os.getenv("OPENROUTER_VISION_MODEL", "google/gemma-4-31b-it:free")
 
 # ============================================
 # ROBOFLOW CONFIGURATION (legacy)
@@ -45,7 +45,7 @@ ROBOFLOW_MODEL_ID = os.getenv("ROBOFLOW_MODEL_ID", "face-anti-spoofing-icbck/1")
 # ============================================
 # MODEL PATHS
 # ============================================
-DEEPFAKE_MODEL_PATH = WEBAPP_DIR / os.getenv("DEEPFAKE_MODEL_PATH", "model_97_acc_100_frames_FF_data.pt")
+DEEPFAKE_MODEL_PATH = WEBAPP_DIR / os.getenv("DEEPFAKE_MODEL_PATH", "trained_model.pt")
 MOBILENET_MODEL_PATH = ROOT_DIR / os.getenv("MOBILENET_MODEL_PATH", "lcc-train04b-weight_all/mobilenetv2-epoch_10.hdf5")
 TRAINED_MODEL_PATH = ROOT_DIR / "trained_model.pth"
 
